@@ -2053,11 +2053,17 @@
     function selectThemePreset(themeId) {
       applySystemTheme(themeId, DB.settings.selectedFont || 'Inter');
       showToast(`Tema "${THEME_PRESETS.find(t => t.id === themeId)?.name}" berhasil diterapkan!`);
+
+      // Sinkronisasi pemilihan tema ke Google Sheets secara real-time
+      syncSettingsToBackend({ selectedTheme: themeId });
     }
 
     function selectFontPreset(fontId) {
       applySystemTheme(DB.settings.selectedTheme || 'magenta-rose', fontId);
       showToast(`Font antarmuka diubah ke "${fontId}"!`);
+
+      // Sinkronisasi pemilihan font ke Google Sheets secara real-time
+      syncSettingsToBackend({ selectedFont: fontId });
     }
 
     function renderThemePresets() {
@@ -4001,6 +4007,37 @@
       DB.save();
       applyBranding();
       showToast('Pengaturan identitas sekolah berhasil disimpan!');
+
+      // Sinkronisasi data identitas ke Google Sheets
+      syncSettingsToBackend({
+      appName: DB.settings.appName,
+      schoolName: DB.settings.schoolName,
+      schoolAddress: DB.settings.schoolAddress,
+      principalName: DB.settings.principalName,
+      principalNIP: DB.settings.principalNIP,
+      selectedTheme: DB.settings.selectedTheme,
+      selectedFont: DB.settings.selectedFont
+      });
+    }
+    /**
+   * Helper untuk mengirim data pengaturan ke Google Sheets via Google Apps Script
+   */
+    function syncSettingsToBackend(settingsPayload) 
+    {
+      if (typeof google !== 'undefined' && google.script && google.script.run) 
+      {
+        google.script.run
+        .withSuccessHandler(function(response) 
+        {
+          if (response && response.success) {
+            console.log('Pengaturan berhasil tersinkronisasi ke Google Sheets');
+          }
+        })
+        .withFailureHandler(function(error) {
+          console.warn('Gagal menyimpan pengaturan ke Google Sheets:', error);
+        })
+        .apiSaveSettings(settingsPayload);
+      }
     }
 
     function applyBranding() {
@@ -4030,13 +4067,29 @@
     }
 
     function initAppSession() {
+      // Ambil data pengaturan terbaru dari Google Sheets saat aplikasi pertama kali dimuat
+      if (typeof google !== 'undefined' && google.script && google.script.run) {
+        google.script.run
+        .withSuccessHandler(function(res) {
+          if (res && res.success && res.settings && res.settings.length > 0) {
+            res.settings.forEach(item => {
+              if (item.settingKey && item.settingValue !== undefined) {
+                DB.settings[item.settingKey] = item.settingValue;
+              }
+            });
+            DB.save();
+            applyBranding();
+            applySystemTheme(DB.settings.selectedTheme || 'magenta-rose', DB.settings.selectedFont || 'Inter');
+          }
+        })
+        .apiGetInitialData();
+      }
       applyBranding();
       applySystemTheme(DB.settings.selectedTheme || 'magenta-rose', DB.settings.selectedFont || 'Inter');
 
       if (DB.currentUser) {
         document.getElementById('loginScreen').classList.add('hidden');
         document.getElementById('mainApp').classList.remove('hidden');
-
         document.getElementById('userNameDisplay').innerText = DB.currentUser.nama;
         document.getElementById('userRoleDisplay').innerText = DB.currentUser.role;
         document.getElementById('dropdownUserName').innerText = DB.currentUser.nama;
