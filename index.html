@@ -1053,6 +1053,22 @@
                 </div>
               </div>
 
+              <!-- Tombol Simpan Perubahan Tema Warna & Font -->
+              <div class="bg-gradient-to-r from-cream-100 via-white to-cream-100 p-4 rounded-2xl border dynamic-theme-border shadow-soft space-y-2">
+                <div class="flex items-center justify-between">
+                  <span class="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                    <i class="fa-solid fa-cloud-arrow-up dynamic-theme-text"></i>
+                    <span>Database Sinkronisasi Tema & Font</span>
+                  </span>
+                  <span class="text-[10px] text-slate-500">Sheet: Settings</span>
+                </div>
+                <p class="text-[11px] text-slate-600">Simpan pilihan warna dan font ke Google Sheets agar semua perangkat (HP/Laptop) otomatis memakai tema yang sama.</p>
+                <button type="button" onclick="saveThemeAndFontSettings()" id="btnSaveThemeAndFont" class="w-full py-3 dynamic-theme-btn text-white rounded-xl text-xs font-bold transition shadow-md hover:opacity-95 flex items-center justify-center gap-2">
+                  <i class="fa-solid fa-floppy-disk"></i>
+                  <span id="btnSaveThemeText">Simpan Perubahan Tema & Font</span>
+                </button>
+              </div>
+
               <!-- 3. Database Maintenance / Demo Reset -->
               <div class="bg-white p-6 rounded-2xl border border-cream-200/80 shadow-soft space-y-3">
                 <h3 class="text-sm font-bold text-slate-800 border-b border-cream-100 pb-2 flex items-center gap-2">
@@ -1842,7 +1858,7 @@
       appName: 'DIGITAS SARPRAS',
       schoolName: 'SMP Negeri 2 Banyuwangi',
       schoolAddress: 'Jl. Ranggawuni No.41 Kel. Kebalenan Banyuwangi',
-      principalName: 'Karyono, S.Pd., M.T',
+      principalName: 'Karyono, S.Pd.,M.T.',
       principalNIP: '19750812 200003 1 004',
       selectedTheme: 'magenta-rose',
       selectedFont: 'Inter'
@@ -2064,6 +2080,58 @@
 
       // Sinkronisasi pemilihan font ke Google Sheets secara real-time
       syncSettingsToBackend({ selectedFont: fontId });
+    }
+
+    /**
+    * Menyimpan pilihan tema warna dan font ke Google Sheets
+    */
+    function saveThemeAndFontSettings() {
+      const btn = document.getElementById('btnSaveThemeAndFont');
+      const btnText = document.getElementById('btnSaveThemeText');
+      const origHtml = btn.innerHTML;
+
+      // Tampilkan status loading
+      btn.disabled = true;
+      btn.classList.add('opacity-75', 'cursor-not-allowed');
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menyimpan ke Google Sheets...';
+
+      // Simpan ke local storage
+      DB.save();
+
+      const payload = {
+        selectedTheme: DB.settings.selectedTheme || 'magenta-rose',
+        selectedFont: DB.settings.selectedFont || 'Inter'
+      };
+
+      if (typeof google !== 'undefined' && google.script && google.script.run) {
+        google.script.run
+          .withSuccessHandler(function(response) {
+            btn.disabled = false;
+            btn.classList.remove('opacity-75', 'cursor-not-allowed');
+            btn.innerHTML = origHtml;
+
+            if (response && response.success) {
+              showToast('Tema warna & font berhasil disimpan permanen ke Google Sheets!', 'success');
+              DB.logActivity(`Tema sistem diubah ke ${payload.selectedTheme} (${payload.selectedFont})`, 'fa-palette dynamic-theme-text');
+            } else {
+              showToast(response?.message || 'Pengaturan tersimpan di browser lokal.', 'info');
+            }
+          })
+          .withFailureHandler(function(err) {
+            btn.disabled = false;
+            btn.classList.remove('opacity-75', 'cursor-not-allowed');
+            btn.innerHTML = origHtml;
+            showToast('Tersimpan di browser lokal (Google Script Offline).', 'info');
+          })
+          .apiSaveSettings(payload);
+      } else {
+        setTimeout(() => {
+          btn.disabled = false;
+          btn.classList.remove('opacity-75', 'cursor-not-allowed');
+          btn.innerHTML = origHtml;
+          showToast('Tema warna & font berhasil disimpan ke browser lokal!', 'success');
+        }, 400);
+      }
     }
 
     function renderThemePresets() {
@@ -3784,11 +3852,8 @@
       openModal('modalQR');
     }
 
-    function renderUsersView() 
-    {
+    function renderUsersView() {
       const tbody = document.getElementById('usersTableBody');
-      if (!tbody) return;
-
       tbody.innerHTML = DB.users.map(u => `
         <tr class="hover:bg-cream-50/70 transition">
           <td class="py-3 px-4">
@@ -3797,20 +3862,20 @@
           </td>
           <td class="py-3 px-4 text-slate-700 font-medium">${u.username}</td>
           <td class="py-3 px-4">
-            <span class="px-2.5 py-1 rounded-lg text-[11px] font-bold ${u.role === 'Admin' ? 'dynamic-theme-bg-light dynamic-theme-text' : u.role === 'Kepala Sekolah' ? 'bg-indigo-100 text-indigo-800' : 'bg-emerald-100 text-emerald-800'}">${u.role}</span>
+            <span class="px-2.5 py-1 rounded-lg text-[11px] font-bold ${u.role === 'Admin' ? 'dynamic-theme-bg-light dynamic-theme-text' : u.role === 'Kepala Sekolah' ? 'bg-indigo-100 text-indigo-800' : 'bg-slate-100 text-slate-700'}">${u.role}</span>
           </td>
           <td class="py-3 px-4">
-            <button type="button" onclick="toggleUserStatus('${u.userId}')" title="Klik untuk ubah status akun" class="px-2.5 py-1 rounded-full text-[10px] font-bold transition ${u.status === 'Aktif' ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200' : 'bg-rose-100 text-rose-800 hover:bg-rose-200'}">
+            <button onclick="toggleUserStatus('${u.userId}')" title="Klik untuk ubah status akun" class="px-2.5 py-1 rounded-full text-[10px] font-bold transition hover:opacity-80 ${u.status === 'Aktif' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}">
               <i class="fa-solid fa-circle text-[8px] mr-1"></i>${u.status}
             </button>
           </td>
           <td class="py-3 px-4 text-right">
             <div class="flex items-center justify-end space-x-1.5">
-              <button type="button" onclick="editUser('${u.userId}')" title="Edit Akun" aria-label="Edit Akun" class="p-2 rounded-xl text-slate-500 hover:text-amber-600 hover:bg-amber-50 transition">
-                <i class="fa-solid fa-pen-to-square text-sm"></i>
+              <button onclick="editUser('${u.userId}')" title="Edit Akun" class="p-2 rounded-xl text-slate-500 hover:text-amber-600 hover:bg-amber-50 transition">
+                <i class="fa-solid fa-pen-to-square"></i>
               </button>
-              <button type="button" onclick="deleteUser('${u.userId}')" title="Hapus Akun" aria-label="Hapus Akun" class="p-2 rounded-xl text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition">
-                <i class="fa-solid fa-trash-can text-sm"></i>
+              <button onclick="deleteUser('${u.userId}')" title="Hapus Akun" class="p-2 rounded-xl text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition">
+                <i class="fa-solid fa-trash-can"></i>
               </button>
             </div>
           </td>
@@ -3819,45 +3884,33 @@
     }
 
     function openUserModal(id = null) {
-      if (DB.currentUser?.role !== 'Admin') {
-        showToast('Hanya Administrator yang memiliki wewenang mengelola akun pengguna!', 'error');
-        return;
-      }
-
       document.getElementById('formUser').reset();
-      const hintEl = document.getElementById('userPassHint');
+      const pwdInput = document.getElementById('userFormPassword');
+      const pwdHelp = document.getElementById('helpUserPassword');
+      const pwdLabel = document.getElementById('labelUserFormPassword');
 
       if (id) {
         const u = DB.users.find(item => item.userId === id);
-        if (!u) {
-          showToast('Data pengguna tidak ditemukan!', 'error');
-          return;
-        }
-
+        if (!u) return;
         document.getElementById('modalUserTitle').innerText = 'Edit Akun Pengguna';
         document.getElementById('userFormId').value = u.userId;
         document.getElementById('userFormNama').value = u.nama;
         document.getElementById('userFormUsername').value = u.username;
         document.getElementById('userFormPassword').value = '';
-        document.getElementById('userFormPassword').placeholder = 'Kosongkan jika tidak ingin mengubah password';
+        pwdInput.required = false;
+        if (pwdLabel) pwdLabel.innerText = 'Password Baru (Opsional)';
+        if (pwdHelp) pwdHelp.classList.remove('hidden');
         document.getElementById('userFormRole').value = u.role;
         document.getElementById('userFormStatus').value = u.status;
-        if (hintEl) hintEl.innerText = '(Kosongkan jika tetap)';
       } else {
-        document.getElementById('modalUserTitle').innerText = 'Tambah Akun Pengguna Baru';
+        document.getElementById('modalUserTitle').innerText = 'Tambah Akun Baru';
         document.getElementById('userFormId').value = '';
-        document.getElementById('userFormPassword').value = '';
-        document.getElementById('userFormPassword').placeholder = 'Minimal 6 karakter';
-        document.getElementById('userFormRole').value = 'Staf';
         document.getElementById('userFormStatus').value = 'Aktif';
-        if (hintEl) hintEl.innerText = '*';
+        pwdInput.required = true;
+        if (pwdLabel) pwdLabel.innerText = 'Password *';
+        if (pwdHelp) pwdHelp.classList.add('hidden');
       }
-
       openModal('modalUser');
-    }
-
-    function editUser(id) {
-      openUserModal(id);
     }
 
     function saveUser() {
@@ -3869,107 +3922,195 @@
       const status = document.getElementById('userFormStatus').value;
 
       if (!nama || !username) {
-        showToast('Nama lengkap dan Username/Email wajib diisi!', 'error');
+        showToast('Lengkapi Nama dan Username/Email!', 'error');
         return;
       }
 
-      // Check for duplicate username
+      if (!id && !password) {
+        showToast('Password wajib diisi untuk akun baru!', 'error');
+        return;
+      }
+
       const duplicate = DB.users.find(u => u.username.toLowerCase() === username.toLowerCase() && u.userId !== id);
       if (duplicate) {
-        showToast(`Username "${username}" sudah digunakan akun lain!`, 'error');
+        showToast(`Username "${username}" sudah digunakan oleh pengguna lain!`, 'error');
         return;
       }
 
-      if (id) {
-        // Edit Mode
-        const idx = DB.users.findIndex(u => u.userId === id);
-        if (idx !== -1) {
-          const updatedPass = password !== '' ? password : DB.users[idx].password;
-          DB.users[idx] = {
-            ...DB.users[idx],
-            nama,
-            username,
-            password: updatedPass,
-            role,
-            status,
-            updatedAt: new Date().toISOString().split('T')[0]
-          };
-
-          // If current logged-in user edited own profile, refresh session cache
-          if (DB.currentUser.userId === id) {
-            DB.currentUser = DB.users[idx];
-            sessionStorage.setItem('DS_AUTH_USER', JSON.stringify(DB.currentUser));
-            document.getElementById('userNameDisplay').innerText = nama;
-            document.getElementById('userRoleDisplay').innerText = role;
-            document.getElementById('dropdownUserName').innerText = nama;
-            document.getElementById('dropdownUserEmail').innerText = username;
-          }
-
-          DB.logActivity(`Akun pengguna "${nama}" diperbarui`, 'fa-user-pen text-amber-600');
-          showToast('Data akun pengguna berhasil diperbarui!');
-        }
-      } else {
-        // Create Mode
-        if (!password) {
-          showToast('Password wajib diisi untuk pembuatan akun baru!', 'error');
-          return;
-        }
-
-        const newUser = {
-          userId: 'USR-' + Date.now(),
-          nama,
-          username,
-          password,
-          role,
-          status,
-          createdAt: new Date().toISOString().split('T')[0]
-        };
-
-        DB.users.push(newUser);
-        DB.logActivity(`Akun baru ditambahkan: "${nama}" (${role})`, 'fa-user-plus text-emerald-600');
-        showToast('Akun baru berhasil ditambahkan!');
+      const btn = document.getElementById('btnSaveUserSubmit');
+      const btnText = document.getElementById('btnSaveUserText');
+      const origText = btnText ? btnText.innerText : 'Simpan Akun';
+      if (btn) {
+        btn.disabled = true;
+        btn.classList.add('opacity-75', 'cursor-not-allowed');
+        if (btnText) btnText.innerText = 'Menyimpan ke Google Sheets...';
       }
 
-      DB.save();
-      closeModal('modalUser');
-      renderUsersView();
+      const userData = {
+        userId: id || '',
+        nama,
+        username,
+        role,
+        status
+      };
+      if (password) {
+        userData.password = password;
+      }
+
+      // Kirim data langsung ke Google Apps Script backend
+      if (typeof google !== 'undefined' && google.script && google.script.run) {
+        google.script.run
+          .withSuccessHandler(function(response) {
+            if (btn) {
+              btn.disabled = false;
+              btn.classList.remove('opacity-75', 'cursor-not-allowed');
+              if (btnText) btnText.innerText = origText;
+            }
+            if (response && response.success) {
+              if (id) {
+                const idx = DB.users.findIndex(u => u.userId === id);
+                if (idx !== -1) {
+                  DB.users[idx] = {
+                    ...DB.users[idx],
+                    nama,
+                    username,
+                    role,
+                    status,
+                    ...(password ? { password } : {})
+                  };
+                }
+                showToast('Akun pengguna berhasil diperbarui di Google Sheets!', 'success');
+              } else {
+                DB.users.push({
+                  userId: response.userId || ('USR-' + Date.now()),
+                  nama,
+                  username,
+                  password,
+                  role,
+                  status,
+                  createdAt: new Date().toISOString().split('T')[0]
+                });
+                showToast('Akun baru berhasil ditambahkan ke Google Sheets!', 'success');
+              }
+              DB.save();
+              closeModal('modalUser');
+              renderUsersView();
+            } else {
+              showToast(response?.message || response?.error || 'Gagal menyimpan akun ke Google Sheets', 'error');
+            }
+          })
+          .withFailureHandler(function(err) {
+            if (btn) {
+              btn.disabled = false;
+              btn.classList.remove('opacity-75', 'cursor-not-allowed');
+              if (btnText) btnText.innerText = origText;
+            }
+            showToast('Gagal terhubung ke Google Sheets: ' + err.message, 'error');
+          })
+          .apiSaveUser(userData);
+      } else {
+        // Fallback untuk pengetesan offline
+        setTimeout(() => {
+          if (btn) {
+            btn.disabled = false;
+            btn.classList.remove('opacity-75', 'cursor-not-allowed');
+            if (btnText) btnText.innerText = origText;
+          }
+          if (id) {
+            const idx = DB.users.findIndex(u => u.userId === id);
+            if (idx !== -1) {
+              DB.users[idx] = {
+                ...DB.users[idx],
+                nama,
+                username,
+                role,
+                status,
+                ...(password ? { password } : {})
+              };
+            }
+            showToast('Akun pengguna diperbarui (Mode Offline)!', 'success');
+          } else {
+            DB.users.push({
+              userId: 'USR-' + Date.now(),
+              nama,
+              username,
+              password,
+              role,
+              status,
+              createdAt: new Date().toISOString().split('T')[0]
+            });
+            showToast('Akun baru ditambahkan (Mode Offline)!', 'success');
+          }
+          DB.save();
+          closeModal('modalUser');
+          renderUsersView();
+        }, 400);
+      }
     }
 
     function toggleUserStatus(id) {
       const u = DB.users.find(item => item.userId === id);
       if (!u) return;
-      u.status = u.status === 'Aktif' ? 'Nonaktif' : 'Aktif';
-      DB.save();
-      showToast(`Status akun ${u.nama} diubah menjadi ${u.status}`);
-      renderUsersView();
+      const newStatus = u.status === 'Aktif' ? 'Nonaktif' : 'Aktif';
+
+      if (typeof google !== 'undefined' && google.script && google.script.run) {
+        google.script.run
+          .withSuccessHandler(function(response) {
+            if (response && response.success) {
+              u.status = newStatus;
+              DB.save();
+              showToast(`Status akun ${u.nama} berhasil diubah ke ${newStatus} di Google Sheets!`);
+              renderUsersView();
+            } else {
+              showToast('Gagal memperbarui status akun di Google Sheets', 'error');
+            }
+          })
+          .withFailureHandler(function(err) {
+            showToast('Gagal menghubungi Google Sheets: ' + err.message, 'error');
+          })
+          .apiSaveUser({ userId: id, status: newStatus });
+      } else {
+        u.status = newStatus;
+        DB.save();
+        showToast(`Status akun ${u.nama} diubah menjadi ${newStatus}`);
+        renderUsersView();
+      }
     }
 
     function deleteUser(id) {
-      if (DB.currentUser?.role !== 'Admin') {
-        showToast('Hanya Administrator yang dapat menghapus akun!', 'error');
-        return;
-      }
-
       if (DB.users.length <= 1) {
-        showToast('Minimal harus ada 1 akun pengguna di sistem!', 'error');
+        showToast('Minimal harus ada 1 akun admin!', 'error');
         return;
       }
-
-      if (id === DB.currentUser.userId) {
-        showToast('Anda tidak dapat menghapus akun yang sedang Anda gunakan untuk login!', 'error');
-        return;
-      }
-
-      const targetUser = DB.users.find(u => u.userId === id);
+      const u = DB.users.find(item => item.userId === id);
+      const nama = u ? u.nama : 'pengguna ini';
 
       promptConfirmation(
         'Hapus Akun Pengguna',
-        'Apakah Anda yakin ingin menghapus akun pengguna ini?',
+        `Apakah Anda yakin ingin menghapus akun "${nama}" secara permanen dari Google Sheets?`,
         () => {
-          DB.users = DB.users.filter(u => u.userId !== id);
-          DB.save();
-          showToast('Akun berhasil dihapus.');
-          renderUsersView();
+          if (typeof google !== 'undefined' && google.script && google.script.run) {
+            google.script.run
+              .withSuccessHandler(function(response) {
+                if (response && response.success) {
+                  DB.users = DB.users.filter(user => user.userId !== id);
+                  DB.save();
+                  showToast('Akun berhasil dihapus permanen dari Google Sheets.');
+                  renderUsersView();
+                } else {
+                  showToast(response?.message || 'Gagal menghapus akun dari Google Sheets', 'error');
+                }
+              })
+              .withFailureHandler(function(err) {
+                showToast('Gagal menghubungi Google Sheets: ' + err.message, 'error');
+              })
+              .apiDeleteUser(id);
+          } else {
+            DB.users = DB.users.filter(user => user.userId !== id);
+            DB.save();
+            showToast('Akun berhasil dihapus (Mode Offline).');
+            renderUsersView();
+          }
         }
       );
     }
@@ -4066,30 +4207,58 @@
       showToast('File CSV berhasil diunduh!');
     }
 
-    function initAppSession() {
-      // Ambil data pengaturan terbaru dari Google Sheets saat aplikasi pertama kali dimuat
-      if (typeof google !== 'undefined' && google.script && google.script.run) {
-        google.script.run
+   function initAppSession() {
+    // Ambil data resmi terbaru (Users, Assets, Settings, dll) dari Google Sheets saat aplikasi dimuat
+    if (typeof google !== 'undefined' && google.script && google.script.run) {
+      google.script.run
         .withSuccessHandler(function(res) {
-          if (res && res.success && res.settings && res.settings.length > 0) {
-            res.settings.forEach(item => {
-              if (item.settingKey && item.settingValue !== undefined) {
-                DB.settings[item.settingKey] = item.settingValue;
-              }
-            });
+          if (res && res.success) {
+            if (res.users && res.users.length > 0) {
+              DB.users = res.users;
+            }
+            if (res.assets && res.assets.length > 0) {
+              DB.assets = res.assets;
+            }
+            if (res.buildings && res.buildings.length > 0) {
+              DB.buildings = res.buildings;
+            }
+            if (res.rooms && res.rooms.length > 0) {
+              DB.rooms = res.rooms;
+            }
+            if (res.maintenance && res.maintenance.length > 0) {
+              DB.maintenance = res.maintenance;
+            }
+            if (res.procurements && res.procurements.length > 0) {
+              DB.procurements = res.procurements;
+            }
+            if (res.disposals && res.disposals.length > 0) {
+              DB.disposals = res.disposals;
+            }
+            if (res.settings && res.settings.length > 0) {
+              res.settings.forEach(item => {
+                if (item.settingKey && item.settingValue !== undefined) {
+                  DB.settings[item.settingKey] = item.settingValue;
+                }
+              });
+            }
             DB.save();
             applyBranding();
             applySystemTheme(DB.settings.selectedTheme || 'magenta-rose', DB.settings.selectedFont || 'Inter');
+            if (document.getElementById('view-users') && !document.getElementById('view-users').classList.contains('hidden')) {
+              renderUsersView();
+            }
           }
         })
         .apiGetInitialData();
-      }
-      applyBranding();
-      applySystemTheme(DB.settings.selectedTheme || 'magenta-rose', DB.settings.selectedFont || 'Inter');
+    }
 
-      if (DB.currentUser) {
+    applyBranding();
+    applySystemTheme(DB.settings.selectedTheme || 'magenta-rose', DB.settings.selectedFont || 'Inter');
+
+    if (DB.currentUser) {
         document.getElementById('loginScreen').classList.add('hidden');
         document.getElementById('mainApp').classList.remove('hidden');
+
         document.getElementById('userNameDisplay').innerText = DB.currentUser.nama;
         document.getElementById('userRoleDisplay').innerText = DB.currentUser.role;
         document.getElementById('dropdownUserName').innerText = DB.currentUser.nama;
